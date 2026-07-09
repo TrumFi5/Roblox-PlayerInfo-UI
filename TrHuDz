@@ -17,7 +17,7 @@ Frame.Parent = Gui
 Frame.Size = UDim2.fromOffset(320,95)
 Frame.Position = UDim2.new(0.5,-160,0.08,0)
 Frame.BackgroundColor3 = Color3.fromRGB(255,192,203)
-Frame.BackgroundTransparency = 0.4
+Frame.BackgroundTransparency = 0.2
 Frame.BorderSizePixel = 0
 
 local Corner = Instance.new("UICorner")
