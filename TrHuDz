@@ -1,0 +1,61 @@
+local Player = game:GetService("Players").LocalPlayer
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+pcall(function()
+	local old = CoreGui:FindFirstChild("PlayerInfoUI")
+	if old then old:Destroy() end
+end)
+
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "PlayerInfoUI"
+Gui.ResetOnSpawn = false
+Gui.Parent = CoreGui
+
+local Frame = Instance.new("Frame")
+Frame.Parent = Gui
+Frame.Size = UDim2.fromOffset(320,95)
+Frame.Position = UDim2.new(0.5,-160,0.08,0)
+Frame.BackgroundColor3 = Color3.fromRGB(255,192,203)
+Frame.BackgroundTransparency = 0.4
+Frame.BorderSizePixel = 0
+
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(0,12)
+Corner.Parent = Frame
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Parent = Frame
+Stroke.Color = Color3.fromRGB(255,20,147)
+Stroke.Thickness = 2
+
+local function CreateLabel(Text,Y)
+	local L = Instance.new("TextLabel")
+	L.Parent = Frame
+	L.BackgroundTransparency = 1
+	L.Size = UDim2.new(1,-20,0,20)
+	L.Position = UDim2.new(0,10,0,Y)
+	L.Font = Enum.Font.GothamBold
+	L.TextSize = 16
+	L.TextColor3 = Color3.fromRGB(255,255,255)
+	L.TextXAlignment = Enum.TextXAlignment.Left
+	L.Text = Text
+	return L
+end
+
+CreateLabel("Name: "..Player.DisplayName,10)
+CreateLabel("Username: @"..Player.Name,35)
+local FPS = CreateLabel("FPS: 0",60)
+
+local Frames = 0
+local Last = tick()
+
+RunService.RenderStepped:Connect(function()
+	Frames += 1
+
+	if tick() - Last >= 1 then
+		FPS.Text = "FPS: "..Frames
+		Frames = 0
+		Last = tick()
+	end
+end)
