@@ -1,0 +1,65 @@
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+
+local Player = Players.LocalPlayer
+
+-- Xóa UI cũ
+pcall(function()
+    local old = CoreGui:FindFirstChild("FPSCounter")
+    if old then
+        old:Destroy()
+    end
+end)
+
+pcall(function()
+    local old = Player.PlayerGui:FindFirstChild("FPSCounter")
+    if old then
+        old:Destroy()
+    end
+end)
+
+-- Tạo ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "FPSCounter"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 999999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+-- CoreGui nếu được, không thì PlayerGui
+if pcall(function() gui.Parent = CoreGui end) == false then
+    gui.Parent = Player.PlayerGui
+end
+
+-- FPS Label
+local fps = Instance.new("TextLabel")
+fps.Name = "FPS"
+fps.Size = UDim2.new(0, 55, 0, 55)
+fps.Position = UDim2.new(0, 8, 0, 8)
+fps.BackgroundTransparency = 1
+fps.Font = Enum.Font.GothamBlack
+fps.TextScaled = true
+fps.Text = "0"
+fps.TextStrokeTransparency = 0
+fps.TextStrokeColor3 = Color3.new(0, 0, 0)
+fps.ZIndex = 999999
+fps.Parent = gui
+
+-- FPS Counter
+local frames = 0
+local last = tick()
+local hue = 0
+
+RunService.RenderStepped:Connect(function(dt)
+    frames += 1
+
+    hue = (hue + dt * 0.35) % 1
+    fps.TextColor3 = Color3.fromHSV(hue, 1, 1)
+
+    if tick() - last >= 1 then
+        fps.Text = tostring(frames)
+        frames = 0
+        last = tick()
+    end
+end)
