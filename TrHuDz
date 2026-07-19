@@ -24,12 +24,13 @@ ToggleButton.TextColor3 = Color3.new(1,1,1)
 ToggleButton.Font = Enum.Font.GothamBold
 ToggleButton.TextSize = 16
 ToggleButton.Text = "ON"
+ToggleButton.AutoLocalize = false
 
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0,8)
 
 local Frame = Instance.new("Frame")
 Frame.Parent = Gui
-Frame.Size = UDim2.new(0,320,0,125)
+Frame.Size = UDim2.new(0,320,0,105)
 Frame.Position = UDim2.new(0.5,-160,0.08,0)
 Frame.BackgroundColor3 = Color3.fromRGB(255,192,203)
 Frame.BackgroundTransparency = 0.2
@@ -53,13 +54,19 @@ local function CreateLabel(text,y)
 	L.TextColor3 = Color3.new(1,1,1)
 	L.TextXAlignment = Enum.TextXAlignment.Left
 	L.Text = text
+	L.AutoLocalize = false -- Dòng này ngăn Roblox tự động dịch ngôn ngữ
 	return L
 end
 
-CreateLabel("Name: "..Player.DisplayName,10)
-CreateLabel("Username: @"..Player.Name,35)
-local Race = CreateLabel("Race: Unknown",60)
-local FPS = CreateLabel("FPS: 0",85)
+local UsernameLabel = CreateLabel("Username: @"..Player.Name, 15)
+UsernameLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+UsernameLabel.TextSize = 18
+
+local Race = CreateLabel("Race: Unknown", 45)
+Race.TextColor3 = Color3.fromRGB(0, 255, 255)
+Race.TextSize = 17
+
+local FPS = CreateLabel("FPS: 0", 75)
 
 local Frames = 0
 local Last = tick()
