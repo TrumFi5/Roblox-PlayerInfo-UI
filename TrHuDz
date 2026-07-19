@@ -4,19 +4,17 @@ local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
--- Xóa UI cũ
 local old = PlayerGui:FindFirstChild("PlayerInfoUI")
 if old then
 	old:Destroy()
 end
 
--- ScreenGui
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "PlayerInfoUI"
 Gui.ResetOnSpawn = false
+Gui.DisplayOrder = 999999
 Gui.Parent = PlayerGui
 
--- Nút ON/OFF
 local ToggleButton = Instance.new("TextButton")
 ToggleButton.Parent = Gui
 ToggleButton.Size = UDim2.new(0,70,0,30)
@@ -29,7 +27,6 @@ ToggleButton.Text = "ON"
 
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0,8)
 
--- Khung chính
 local Frame = Instance.new("Frame")
 Frame.Parent = Gui
 Frame.Size = UDim2.new(0,320,0,125)
@@ -64,7 +61,6 @@ CreateLabel("Username: @"..Player.Name,35)
 local Race = CreateLabel("Race: Unknown",60)
 local FPS = CreateLabel("FPS: 0",85)
 
--- FPS Rainbow
 local Frames = 0
 local Last = tick()
 local Hue = 0
@@ -82,7 +78,6 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 end)
 
--- Race (nếu game của bạn có StringValue tên Race)
 task.spawn(function()
 	while task.wait(1) do
 		pcall(function()
