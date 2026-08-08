@@ -37,8 +37,9 @@ local fps = Instance.new("TextLabel")
 fps.Name = "FPS"
 fps.Size = UDim2.new(0, 55, 0, 55)
 
--- ĐÃ HẠ XUỐNG THÊM (Y offset = 120)
-fps.Position = UDim2.new(0, 8, 0, 120) 
+-- CHỈNH VỊ TRÍ TẠI ĐÂY: (X offset: 8, Y offset: 50)
+-- Nếu muốn thấp hơn nữa bạn có thể tăng số 50 lên (ví dụ: 60, 70)
+fps.Position = UDim2.new(0, 8, 0, 50) 
 
 fps.BackgroundTransparency = 1
 fps.Font = Enum.Font.GothamBlack
