@@ -1,0 +1,385 @@
+local Config = {
+    TargetFruit = {"Kitsune", "Dragon", "Leopard","Yeti","Control"}, -- Vi du: {"Kitsune", "Dragon", "Leopard"}
+    WebhookURL = "https://discord.com/api/webhooks/1537076203322613813/B390091IqhIGPvQ7f_55BWHGAHz3mW43LrSDWCaG_27i-M-2_68zrslv-XtxVuHGQHy4", -- Link Discord webhook
+    Ping = "everyone", -- "everyone", user ID, hoac de trong
+    TimeCheck = 300, -- Giay
+}
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+    or Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    or Players.LocalPlayer
+
+assert(LocalPlayer, "Khong tim thay LocalPlayer")
+assert(type(isfile) == "function", "Executor khong ho tro isfile")
+assert(type(readfile) == "function", "Executor khong ho tro readfile")
+assert(type(writefile) == "function", "Executor khong ho tro writefile")
+
+local ItemRepService = ReplicatedStorage:WaitForChild("ItemReplicationService")
+local ItemRepModule = require(ItemRepService)
+local ItemRepKEYS = require(ItemRepService:WaitForChild("KEYS"))
+local ItemConfigModule = require(ReplicatedStorage:WaitForChild("ItemConfig"))
+
+local StateFile = LocalPlayer.Name .. "-okvip.txt"
+local Environment = getgenv()
+local RunToken = {}
+
+-- Execute lai script se dung vong lap cu, tranh check/gui trung trong cung executor.
+Environment.__TARGET_FRUIT_CHECKER_TOKEN = RunToken
+
+local function trim(value)
+    return tostring(value or ""):match("^%s*(.-)%s*$")
+end
+
+local function normalizeFruitName(value)
+    local name = trim(value):lower()
+
+    name = name:gsub("<[^>]->", "")
+    name = name:gsub("%b[]", "")
+    name = name:gsub("%s+[Ff]ruit$", "")
+    name = name:gsub("%s+", "")
+
+    local left, right = name:match("^([^%-]+)%-(.+)$")
+    if left and right and left == right then
+        name = left
+    end
+
+    return name:gsub("%-", "")
+end
+
+local function canonicalFruitName(value)
+    local name = trim(value):gsub("%s+[Ff]ruit$", "")
+
+    if name:find("-", 1, true) then
+        name = name:match("^([^-]+)") or name
+    end
+
+    if name == "" then
+        return "Unknown Fruit"
+    end
+
+    return name .. " Fruit"
+end
+
+local function waitForItemReplication(timeoutSeconds)
+    local deadline = tick() + timeoutSeconds
+
+    while ItemRepModule.IsInitialized ~= true and tick() < deadline do
+        task.wait(0.05)
+    end
+
+    return ItemRepModule.IsInitialized == true
+end
+
+local function getInventoryItems()
+    if not waitForItemReplication(8) then
+        return nil, "ItemReplication did not initialize"
+    end
+
+    local ok, rawItems = pcall(function()
+        return ItemRepModule:GetItems(ItemRepKEYS.QUANTITY)
+    end)
+
+    if not ok then
+        return nil, tostring(rawItems)
+    end
+
+    if type(rawItems) ~= "table" then
+        return nil, "ItemReplication returned " .. type(rawItems)
+    end
+
+    local items = {}
+
+    for _, item in pairs(rawItems) do
+        if type(item) == "table" and (tonumber(item.Value) or 0) > 0 then
+            local label
+            local labelOK, labelResult = pcall(function()
+                return ItemConfigModule
+                    .match(item.ItemId)
+                    :unwrap()
+                    .Index
+                    .DebugLabel
+            end)
+
+            if labelOK then
+                label = tostring(labelResult)
+            end
+
+            local cleanName, category = tostring(label or ""):match(
+                "^(.-)%s*%[(%a+)%-[^%]]*%]%s*$"
+            )
+
+            table.insert(items, {
+                Name = cleanName or label or tostring(item.ItemId),
+                Type = category,
+                Count = tonumber(item.Value) or 0,
+            })
+        end
+    end
+
+    return items, nil
+end
+
+local function buildTargetMap()
+    local targets = {}
+
+    for _, targetName in ipairs(Config.TargetFruit or {}) do
+        local normalized = normalizeFruitName(targetName)
+
+        if normalized ~= "" then
+            targets[normalized] = trim(targetName)
+        end
+    end
+
+    return targets
+end
+
+local function findOwnedTargetFruits()
+    local items, inventoryError = getInventoryItems()
+    if not items then
+        return nil, inventoryError
+    end
+
+    local targetMap = buildTargetMap()
+    local found = {}
+    local foundKeys = {}
+
+    for _, item in ipairs(items) do
+        local normalized = normalizeFruitName(item.Name)
+
+        if tostring(item.Type or ""):lower() == "physicalmoveset"
+            and targetMap[normalized]
+            and not foundKeys[normalized] then
+
+            foundKeys[normalized] = true
+            table.insert(found, {
+                StateName = targetMap[normalized],
+                DisplayName = canonicalFruitName(item.Name),
+            })
+        end
+    end
+
+    return found, nil
+end
+
+local function readState()
+    if not isfile(StateFile) then
+        return {}, ""
+    end
+
+    local ok, content = pcall(readfile, StateFile)
+    if not ok then
+        return nil, tostring(content)
+    end
+
+    content = tostring(content or "")
+    local state = {}
+
+    for line in content:gmatch("[^\r\n]+") do
+        local fruitName, value = line:match("^%s*(.-)%s*=%s*(%a+)%s*$")
+
+        if fruitName and tostring(value):lower() == "true" then
+            state[normalizeFruitName(fruitName)] = true
+        end
+    end
+
+    return state, content
+end
+
+local function saveDetectedFruit(stateName)
+    local state, contentOrError = readState()
+    if not state then
+        return false, contentOrError
+    end
+
+    local normalized = normalizeFruitName(stateName)
+    if state[normalized] then
+        return true
+    end
+
+    local content = contentOrError
+    if content ~= "" and not content:match("[\r\n]$") then
+        content = content .. "\n"
+    end
+
+    content = content .. trim(stateName) .. " = true"
+
+    local lastError = "unknown write error"
+
+    for attempt = 1, 3 do
+        local writeOK, writeError = pcall(writefile, StateFile, content)
+
+        if writeOK then
+            local verifyOK, actual = pcall(readfile, StateFile)
+            if verifyOK and tostring(actual) == content then
+                return true
+            end
+
+            lastError = "file verification failed"
+        else
+            lastError = tostring(writeError)
+        end
+
+        if attempt < 3 then
+            task.wait(0.2 * attempt)
+        end
+    end
+
+    return false, lastError
+end
+
+local function getRequestFunction()
+    return (syn and syn.request)
+        or http_request
+        or request
+        or (fluxus and fluxus.request)
+end
+
+local function webhookSucceeded(response)
+    if type(response) ~= "table" then
+        return true
+    end
+
+    local statusCode = tonumber(
+        response.StatusCode or response.Status or response.status_code
+    )
+
+    return statusCode == nil or (statusCode >= 200 and statusCode < 300)
+end
+
+local function buildPing()
+    local configuredPing = trim(Config.Ping)
+    local lowerPing = configuredPing:lower()
+
+    if configuredPing == "" then
+        return "", {parse = {}}
+    end
+
+    if lowerPing == "everyone" or lowerPing == "@everyone" then
+        return "@everyone", {parse = {"everyone"}}
+    end
+
+    local userId = configuredPing:match("%d+")
+    if userId then
+        return "<@" .. userId .. ">", {
+            parse = {},
+            users = {userId},
+        }
+    end
+
+    return "", {parse = {}}
+end
+
+local function sendWebhook(fruitName)
+    local webhookURL = trim(Config.WebhookURL)
+    if webhookURL == "" then
+        return false, "WebhookURL is empty"
+    end
+
+    local requestFunction = getRequestFunction()
+    if not requestFunction then
+        return false, "Executor does not support HTTP request"
+    end
+
+    local pingText, allowedMentions = buildPing()
+    local lines = {}
+
+    if pingText ~= "" then
+        table.insert(lines, pingText)
+    end
+
+    table.insert(lines, "Target Fruit Detect")
+    table.insert(lines, "result: " .. tostring(fruitName))
+
+    local encodeOK, body = pcall(function()
+        return HttpService:JSONEncode({
+            content = table.concat(lines, "\n"),
+            allowed_mentions = allowedMentions,
+        })
+    end)
+
+    if not encodeOK then
+        return false, "JSON encode failed: " .. tostring(body)
+    end
+
+    local requestOK, response = pcall(function()
+        return requestFunction({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json",
+            },
+            Body = body,
+        })
+    end)
+
+    if not requestOK then
+        return false, tostring(response)
+    end
+
+    if not webhookSucceeded(response) then
+        local statusCode = type(response) == "table"
+            and (response.StatusCode or response.Status or response.status_code)
+        return false, "HTTP " .. tostring(statusCode or "failure")
+    end
+
+    return true
+end
+
+local function checkOnce()
+    local state, stateError = readState()
+    if not state then
+        warn("[TargetFruitChecker] Cannot read state file:", stateError)
+        return
+    end
+
+    local fruits, inventoryError = findOwnedTargetFruits()
+    if not fruits then
+        warn("[TargetFruitChecker] Inventory read failed:", inventoryError)
+        return
+    end
+
+    for _, fruit in ipairs(fruits) do
+        local stateKey = normalizeFruitName(fruit.StateName)
+
+        if not state[stateKey] then
+            local sent, webhookError = sendWebhook(fruit.DisplayName)
+
+            if sent then
+                local saved, saveError = saveDetectedFruit(fruit.StateName)
+
+                if saved then
+                    state[stateKey] = true
+                    print(
+                        "[TargetFruitChecker] Detected and saved:",
+                        fruit.DisplayName
+                    )
+                else
+                    warn(
+                        "[TargetFruitChecker] Webhook sent but state save failed:",
+                        saveError
+                    )
+                end
+            else
+                warn(
+                    "[TargetFruitChecker] Webhook failed:",
+                    fruit.DisplayName,
+                    webhookError
+                )
+            end
+        end
+    end
+end
+
+while Environment.__TARGET_FRUIT_CHECKER_TOKEN == RunToken do
+    local ok, errorMessage = pcall(checkOnce)
+
+    if not ok then
+        warn("[TargetFruitChecker] Check error:", errorMessage)
+    end
+
+    task.wait(math.max(0.5, tonumber(Config.TimeCheck) or 5))
+end
