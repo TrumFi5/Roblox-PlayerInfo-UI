@@ -1,0 +1,86 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomAbilityGui"
+screenGui.ResetOnSpawn = false
+
+local success, _ = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 160, 0, 110)
+mainFrame.Position = UDim2.new(0.5, -80, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "Title"
+titleLabel.Size = UDim2.new(1, 0, 0, 25)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = player.Name
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Parent = mainFrame
+
+local buttonV3 = Instance.new("TextButton")
+buttonV3.Name = "BtnOnV3"
+buttonV3.Size = UDim2.new(0.85, 0, 0, 30)
+buttonV3.Position = UDim2.new(0.075, 0, 0, 30)
+buttonV3.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
+buttonV3.Text = "On V3"
+buttonV3.TextColor3 = Color3.fromRGB(255, 255, 255)
+buttonV3.TextSize = 14
+buttonV3.Font = Enum.Font.SourceSansBold
+buttonV3.Parent = mainFrame
+
+local cornerV3 = Instance.new("UICorner")
+cornerV3.CornerRadius = UDim.new(0, 6)
+cornerV3.Parent = buttonV3
+
+local buttonReset = Instance.new("TextButton")
+buttonReset.Name = "BtnReset"
+buttonReset.Size = UDim2.new(0.85, 0, 0, 30)
+buttonReset.Position = UDim2.new(0.075, 0, 0, 68)
+buttonReset.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+buttonReset.Text = "Reset"
+buttonReset.TextColor3 = Color3.fromRGB(255, 255, 255)
+buttonReset.TextSize = 14
+buttonReset.Font = Enum.Font.SourceSansBold
+buttonReset.Parent = mainFrame
+
+local cornerReset = Instance.new("UICorner")
+cornerReset.CornerRadius = UDim.new(0, 6)
+cornerReset.Parent = buttonReset
+
+buttonV3.MouseButton1Click:Connect(function()
+    pcall(function()
+        ReplicatedStorage
+            :WaitForChild("Remotes")
+            :WaitForChild("CommE")
+            :FireServer("ActivateAbility")
+    end)
+end)
+
+buttonReset.MouseButton1Click:Connect(function()
+    local character = player.Character or player.CharacterAdded:Wait()
+    if character then
+        character:BreakJoints()
+    end
+end)
