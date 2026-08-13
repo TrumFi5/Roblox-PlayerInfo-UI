@@ -1,5 +1,5 @@
 local Config = {
-    TargetFruit = {"Kitsune", "Dragon", "Leopard","Yeti","Control"}, -- Vi du: {"Kitsune", "Dragon", "Leopard"}
+    TargetFruit = {"Kitsune", "Dragon", "Tiger","Yeti","Control"}, -- Vi du: {"Kitsune", "Dragon", "Leopard"}
     WebhookURL = "https://discord.com/api/webhooks/1537076203322613813/B390091IqhIGPvQ7f_55BWHGAHz3mW43LrSDWCaG_27i-M-2_68zrslv-XtxVuHGQHy4", -- Link Discord webhook
     Ping = "everyone", -- "everyone", user ID, hoac de trong
     TimeCheck = 300, -- Giay
