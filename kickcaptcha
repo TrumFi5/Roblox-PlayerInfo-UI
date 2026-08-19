@@ -3,8 +3,6 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local kickReason = "Phát Hiện Captcha, Chờ Rejon !"
-local isKicked = false -- Biến khóa để đảm bảo chỉ chạy 1 lần
-
 local keywords = {
     "Verifying you're not a",
     "Verification",
@@ -12,34 +10,37 @@ local keywords = {
     "Captcha"
 }
 
-local function checkAndKick(instance)
-    if isKicked then return end -- Dừng nếu đã kick rồi
+-- Hàm quét và thực hiện Kick
+local function scanAndKick()
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    
+    -- Gom toàn bộ UI trong CoreGui và PlayerGui để quét
+    local targets = {}
+    for _, item in ipairs(CoreGui:GetDescendants()) do table.insert(targets, item) end
+    if playerGui then
+        for _, item in ipairs(playerGui:GetDescendants()) do table.insert(targets, item) end
+    end
 
-    if instance:IsA("TextLabel") or instance:IsA("TextButton") then
-        local text = instance.Text
-        for _, word in ipairs(keywords) do
-            -- Dùng string.lower để kiểm tra không phân biệt hoa thường
-            if string.find(string.lower(text), string.lower(word)) then
-                isKicked = true
-                LocalPlayer:Kick("\n[AUTO-KICK]\n" .. kickReason)
-                break
+    -- Kiểm tra từ khóa
+    for _, instance in ipairs(targets) do
+        if instance:IsA("TextLabel") or instance:IsA("TextButton") then
+            local text = instance.Text
+            for _, word in ipairs(keywords) do
+                if string.find(string.lower(text), string.lower(word)) then
+                    LocalPlayer:Kick("\n[AUTO-KICK]\n" .. kickReason)
+                    return true -- Phát hiện xong dừng luôn
+                end
             end
         end
     end
+    return false
 end
 
--- Quét UI hiện có
-for _, gui in ipairs(CoreGui:GetDescendants()) do
-    checkAndKick(gui)
-end
-if LocalPlayer:FindFirstChildOfClass("PlayerGui") then
-    for _, gui in ipairs(LocalPlayer:FindFirstChildOfClass("PlayerGui"):GetDescendants()) do
-        checkAndKick(gui)
+-- Vòng lặp tự động chạy mỗi 120 giây
+task.spawn(function()
+    while true do
+        local isKicked = scanAndKick()
+        if isKicked then break end -- Nếu đã Kick thì ngắt vòng lặp
+        task.wait(120) -- Đợi 120 giây (2 phút) rồi mới quét lại
     end
-end
-
--- Lắng nghe UI mới
-CoreGui.DescendantAdded:Connect(checkAndKick)
-if LocalPlayer:FindFirstChildOfClass("PlayerGui") then
-    LocalPlayer:FindFirstChildOfClass("PlayerGui").DescendantAdded:Connect(checkAndKick)
-end
+end)
