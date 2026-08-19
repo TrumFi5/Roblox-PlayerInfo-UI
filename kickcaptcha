@@ -1,0 +1,45 @@
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local kickReason = "Phát Hiện Captcha, Chờ Rejon !"
+local isKicked = false -- Biến khóa để đảm bảo chỉ chạy 1 lần
+
+local keywords = {
+    "Verifying you're not a",
+    "Verification",
+    "Security",
+    "Captcha"
+}
+
+local function checkAndKick(instance)
+    if isKicked then return end -- Dừng nếu đã kick rồi
+
+    if instance:IsA("TextLabel") or instance:IsA("TextButton") then
+        local text = instance.Text
+        for _, word in ipairs(keywords) do
+            -- Dùng string.lower để kiểm tra không phân biệt hoa thường
+            if string.find(string.lower(text), string.lower(word)) then
+                isKicked = true
+                LocalPlayer:Kick("\n[AUTO-KICK]\n" .. kickReason)
+                break
+            end
+        end
+    end
+end
+
+-- Quét UI hiện có
+for _, gui in ipairs(CoreGui:GetDescendants()) do
+    checkAndKick(gui)
+end
+if LocalPlayer:FindFirstChildOfClass("PlayerGui") then
+    for _, gui in ipairs(LocalPlayer:FindFirstChildOfClass("PlayerGui"):GetDescendants()) do
+        checkAndKick(gui)
+    end
+end
+
+-- Lắng nghe UI mới
+CoreGui.DescendantAdded:Connect(checkAndKick)
+if LocalPlayer:FindFirstChildOfClass("PlayerGui") then
+    LocalPlayer:FindFirstChildOfClass("PlayerGui").DescendantAdded:Connect(checkAndKick)
+end
