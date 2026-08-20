@@ -1,8 +1,8 @@
-Config = {
-    TargetFruit = {"Kitsune", "Dragon", "Tiger", "Yeti", "Control"},
-    WebhookURL = "https://discord.com/api/webhooks/1537076203322613813/B390091IqhIGPvQ7f_55BWHGAHz3mW43LrSDWCaG_27i-M-2_68zrslv-XtxVuHGQHy4",
-    Ping = "everyone",
-    TimeCheck = 300,
+local Config = {
+    TargetFruit = {"Kitsune", "Dragon", "Tiger", "Yeti", "Control"}, -- Vi du: {"Kitsune", "Dragon", "Leopard"}
+    WebhookURL = "https://discord.com/api/webhooks/1537076203322613813/B390091IqhIGPvQ7f_55BWHGAHz3mW43LrSDWCaG_27i-M-2_68zrslv-XtxVuHGQHy4", -- Link Discord webhook
+    Ping = "everyone", -- "everyone", user ID, hoac de trong
+    TimeCheck = 300, -- Giay
 }
 
 local Players = game:GetService("Players")
@@ -27,6 +27,7 @@ local StateFile = LocalPlayer.Name .. "-okvip.txt"
 local Environment = getgenv()
 local RunToken = {}
 
+-- Execute lai script se dung vong lap cu, tranh check/gui trung trong cung executor.
 Environment.__TARGET_FRUIT_CHECKER_TOKEN = RunToken
 
 local function trim(value)
@@ -279,7 +280,7 @@ local function sendWebhook(fruitName)
     end
 
     local requestFunction = getRequestFunction()
-    if not requestFunction then
+    if not requestFunction me
         return false, "Executor does not support HTTP request"
     end
 
@@ -371,7 +372,7 @@ local function checkOnce()
                 )
             end
         end
-    
+    end
 end
 
 while Environment.__TARGET_FRUIT_CHECKER_TOKEN == RunToken do
