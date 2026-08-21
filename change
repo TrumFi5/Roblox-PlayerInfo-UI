@@ -1,0 +1,436 @@
+repeat task.wait() until game:IsLoaded()
+repeat task.wait() until game:GetService("Players").LocalPlayer
+repeat task.wait() until game:GetService("Players").LocalPlayer:FindFirstChild("Data")
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Player = Players.LocalPlayer
+local Data = Player:WaitForChild("Data")
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+local ItemRepService = ReplicatedStorage:WaitForChild("ItemReplicationService")
+local ItemRepModule = require(ItemRepService)
+local ItemRepKEYS = require(ItemRepService:WaitForChild("KEYS"))
+local ItemConfigModule = require(ReplicatedStorage:WaitForChild("ItemConfig"))
+
+local Config = getgenv().ConfigChange
+
+if getgenv().__CONFIG_CHANGE_RUNNING then
+    return
+end
+
+getgenv().__CONFIG_CHANGE_RUNNING = true
+
+local function safeInvoke(...)
+    local args = {...}
+
+    local result = {
+        pcall(function()
+            return CommF:InvokeServer(table.unpack(args))
+        end)
+    }
+
+    local success = result[1]
+    table.remove(result, 1)
+
+    if not success then
+        return false, result[1]
+    end
+
+    return true, table.unpack(result)
+end
+
+local function GetInventoryItems()
+    local items = {}
+    local timeout = tick() + 5
+
+    while ItemRepModule.IsInitialized ~= true and tick() < timeout do
+        task.wait()
+    end
+
+    local success, quantityItems = pcall(function()
+        return ItemRepModule:GetItems(ItemRepKEYS.QUANTITY)
+    end)
+
+    if not success or not quantityItems then
+        return items
+    end
+
+    for _, item in pairs(quantityItems) do
+        if item.Value and item.Value > 0 then
+            local nameSuccess, label = pcall(function()
+                return ItemConfigModule.match(item.ItemId):unwrap().Index.DebugLabel
+            end)
+
+            if nameSuccess and label then
+                local cleanName, category =
+                    label:match("^(.-)%s*%[(%a+)%-[^%]]*%]%s*$")
+
+                if not cleanName then
+                    cleanName = label
+                end
+
+                table.insert(items, {
+                    Name = cleanName,
+                    Type = category,
+                    Count = item.Value,
+                    ItemId = item.ItemId
+                })
+            end
+        end
+    end
+
+    return items
+end
+
+local function normalize(value)
+    return tostring(value or "")
+        :lower()
+        :gsub("^%s+", "")
+        :gsub("%s+$", "")
+end
+
+local function hasItem(inventory, itemName)
+    local target = normalize(itemName)
+
+    for _, item in ipairs(inventory) do
+        if normalize(item.Name) == target then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function normalizeFruitName(value)
+    local key = tostring(value or "")
+        :lower()
+        :gsub("%s+fruit$", "")
+        :gsub("[^%w]", "")
+
+    if key == "" or key == "none" then
+        return ""
+    end
+
+    if #key % 2 == 0 then
+        local half = key:sub(1, #key / 2)
+
+        if half .. half == key then
+            key = half
+        end
+    end
+
+    return key
+end
+
+local function displayFruitName(value)
+    local text = tostring(value or "")
+
+    text = text:gsub("%s+[Ff]ruit$", "")
+
+    local first = text:match("^([^-]+)")
+
+    if first and first ~= "" then
+        text = first
+    end
+
+    text = text:gsub("^%s+", ""):gsub("%s+$", "")
+
+    return text
+end
+
+local function inventoryHasFruit(inventory, fruitName)
+    local target = normalizeFruitName(fruitName)
+
+    if target == "" then
+        return false
+    end
+
+    for _, item in ipairs(inventory) do
+        local itemType = normalize(item.Type)
+
+        if itemType == "physicalmoveset" then
+            local current = normalizeFruitName(item.Name)
+
+            if current == target then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local function getCurrentFruit()
+    local names = {
+        "DevilFruit",
+        "Fruit",
+        "BloxFruit"
+    }
+
+    for _, name in ipairs(names) do
+        local object = Data:FindFirstChild(name)
+
+        if object then
+            local success, value = pcall(function()
+                return object.Value
+            end)
+
+            if success and value then
+                local normalized = normalizeFruitName(value)
+
+                if normalized ~= "" then
+                    return value
+                end
+            end
+        end
+    end
+
+    return nil
+end
+
+local function getTargetFruits(inventory)
+    local result = {}
+    local added = {}
+
+    local currentFruit = getCurrentFruit()
+    local currentNormalized = normalizeFruitName(currentFruit)
+
+    for _, targetFruit in ipairs(Config.TargetFruit or {}) do
+        local normalizedTarget = normalizeFruitName(targetFruit)
+
+        local owned =
+            inventoryHasFruit(inventory, targetFruit)
+            or (
+                currentNormalized ~= ""
+                and currentNormalized == normalizedTarget
+            )
+
+        if owned and not added[normalizedTarget] then
+            added[normalizedTarget] = true
+
+            table.insert(
+                result,
+                displayFruitName(targetFruit)
+            )
+        end
+    end
+
+    return result
+end
+
+local function checkGodHuman()
+    local success, result = safeInvoke("BuyGodhuman", true)
+
+    if not success then
+        return false
+    end
+
+    return result == 1
+end
+
+local function checkPullLever()
+    local success, result = safeInvoke("CheckTempleDoor")
+
+    if not success then
+        return false
+    end
+
+    return result ~= nil and result ~= false
+end
+
+local function getLevel()
+    local object = Data:FindFirstChild("Level")
+
+    if not object then
+        return 0
+    end
+
+    return tonumber(object.Value) or 0
+end
+
+local function getBeli()
+    local object =
+        Data:FindFirstChild("Beli")
+        or Data:FindFirstChild("Money")
+
+    if not object then
+        return 0
+    end
+
+    return tonumber(object.Value) or 0
+end
+
+local function getFrag()
+    local object =
+        Data:FindFirstChild("Fragments")
+        or Data:FindFirstChild("Fragment")
+        or Data:FindFirstChild("Frag")
+
+    if not object then
+        return 0
+    end
+
+    return tonumber(object.Value) or 0
+end
+
+local function enabledNumber(value)
+    if value == false or value == nil then
+        return nil
+    end
+
+    local number = tonumber(value)
+
+    if not number or number <= 0 then
+        return nil
+    end
+
+    return number
+end
+
+local function checkRequirements(inventory)
+    local levelNeed = enabledNumber(Config.Level)
+    local beliNeed = enabledNumber(Config.Beli)
+    local fragNeed = enabledNumber(Config.Frag)
+
+    if levelNeed and getLevel() < levelNeed then
+        return false
+    end
+
+    if Config.GodHuman == true and not checkGodHuman() then
+        return false
+    end
+
+    if Config.CursedDualKatana == true
+        and not hasItem(inventory, "Cursed Dual Katana") then
+        return false
+    end
+
+    if Config.SharkAnchor == true
+        and not hasItem(inventory, "Shark Anchor") then
+        return false
+    end
+
+    if Config.TrueTripleKatana == true
+        and not hasItem(inventory, "True Triple Katana") then
+        return false
+    end
+
+    if Config.SkullGuitar == true
+        and not hasItem(inventory, "Skull Guitar") then
+        return false
+    end
+
+    if Config.Mirror == true
+        and not hasItem(inventory, "Mirror Fractal") then
+        return false
+    end
+
+    if Config.Val == true
+        and not hasItem(inventory, "Valkyrie Helm") then
+        return false
+    end
+
+    if Config.PullLever == true and not checkPullLever() then
+        return false
+    end
+
+    if beliNeed and getBeli() < beliNeed then
+        return false
+    end
+
+    if fragNeed and getFrag() < fragNeed then
+        return false
+    end
+
+    return true
+end
+
+local function buildCompleted(inventory)
+    local result = {
+        "Completed"
+    }
+
+    local levelNeed = enabledNumber(Config.Level)
+
+    if levelNeed then
+        table.insert(
+            result,
+            "Level" .. tostring(levelNeed)
+        )
+    end
+
+    if Config.GodHuman == true then
+        table.insert(result, "God")
+    end
+
+    if Config.CursedDualKatana == true then
+        table.insert(result, "CDK")
+    end
+
+    if Config.SharkAnchor == true then
+        table.insert(result, "SharkAnchor")
+    end
+
+    if Config.TrueTripleKatana == true then
+        table.insert(result, "TTK")
+    end
+
+    if Config.SkullGuitar == true then
+        table.insert(result, "SkullGuitar")
+    end
+
+    if Config.Mirror == true then
+        table.insert(result, "Mirror")
+    end
+
+    if Config.Val == true then
+        table.insert(result, "Val")
+    end
+
+    if Config.PullLever == true then
+        table.insert(result, "PullLever")
+    end
+
+    local fruits = getTargetFruits(inventory)
+
+    for _, fruit in ipairs(fruits) do
+        table.insert(result, fruit)
+    end
+
+    return table.concat(result, "_")
+end
+
+local function saveCompleted(inventory)
+    if not writefile then
+        return false
+    end
+
+    local fileName = Player.Name .. ".txt"
+    local content = buildCompleted(inventory)
+
+    local success = pcall(function()
+        writefile(fileName, content)
+    end)
+
+    return success
+end
+
+while true do
+    local inventory = GetInventoryItems()
+
+    if checkRequirements(inventory) then
+        if saveCompleted(inventory) then
+            getgenv().__CONFIG_CHANGE_RUNNING = false
+            break
+        end
+    end
+
+    task.wait(
+        math.max(
+            tonumber(Config.TimeCheck) or 5,
+            1
+        )
+    )
+end
