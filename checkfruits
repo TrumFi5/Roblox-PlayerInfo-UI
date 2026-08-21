@@ -1,8 +1,8 @@
-local Config = {
-    TargetFruit = {"Kitsune", "Dragon", "Tiger", "Yeti", "Control"}, -- Vi du: {"Kitsune", "Dragon", "Leopard"}
-    WebhookURL = "https://discord.com/api/webhooks/1537076203322613813/B390091IqhIGPvQ7f_55BWHGAHz3mW43LrSDWCaG_27i-M-2_68zrslv-XtxVuHGQHy4", -- Link Discord webhook
-    Ping = "everyone", -- "everyone", user ID, hoac de trong
-    TimeCheck = 300, -- Giay
+local Config = getgenv().TargetFruitConfig or {
+    TargetFruit = {"Kitsune", "Dragon", "Leopard", "Yeti", "Control"},
+    WebhookURL = "",
+    Ping = "everyone",
+    TimeCheck = 300,
 }
 
 local Players = game:GetService("Players")
@@ -27,7 +27,6 @@ local StateFile = LocalPlayer.Name .. "-okvip.txt"
 local Environment = getgenv()
 local RunToken = {}
 
--- Execute lai script se dung vong lap cu, tranh check/gui trung trong cung executor.
 Environment.__TARGET_FRUIT_CHECKER_TOKEN = RunToken
 
 local function trim(value)
@@ -36,7 +35,6 @@ end
 
 local function normalizeFruitName(value)
     local name = trim(value):lower()
-
     name = name:gsub("<[^>]->", "")
     name = name:gsub("%b[]", "")
     name = name:gsub("%s+[Ff]ruit$", "")
@@ -52,25 +50,20 @@ end
 
 local function canonicalFruitName(value)
     local name = trim(value):gsub("%s+[Ff]ruit$", "")
-
     if name:find("-", 1, true) then
         name = name:match("^([^-]+)") or name
     end
-
     if name == "" then
         return "Unknown Fruit"
     end
-
     return name .. " Fruit"
 end
 
 local function waitForItemReplication(timeoutSeconds)
     local deadline = tick() + timeoutSeconds
-
     while ItemRepModule.IsInitialized ~= true and tick() < deadline do
         task.wait(0.05)
     end
-
     return ItemRepModule.IsInitialized == true
 end
 
@@ -92,7 +85,6 @@ local function getInventoryItems()
     end
 
     local items = {}
-
     for _, item in pairs(rawItems) do
         if type(item) == "table" and (tonumber(item.Value) or 0) > 0 then
             local label
@@ -125,15 +117,12 @@ end
 
 local function buildTargetMap()
     local targets = {}
-
     for _, targetName in ipairs(Config.TargetFruit or {}) do
         local normalized = normalizeFruitName(targetName)
-
         if normalized ~= "" then
             targets[normalized] = trim(targetName)
         end
     end
-
     return targets
 end
 
@@ -149,7 +138,6 @@ local function findOwnedTargetFruits()
 
     for _, item in ipairs(items) do
         local normalized = normalizeFruitName(item.Name)
-
         if tostring(item.Type or ""):lower() == "physicalmoveset"
             and targetMap[normalized]
             and not foundKeys[normalized] then
@@ -180,7 +168,6 @@ local function readState()
 
     for line in content:gmatch("[^\r\n]+") do
         local fruitName, value = line:match("^%s*(.-)%s*=%s*(%a+)%s*$")
-
         if fruitName and tostring(value):lower() == "true" then
             state[normalizeFruitName(fruitName)] = true
         end
@@ -206,7 +193,6 @@ local function saveDetectedFruit(stateName)
     end
 
     content = content .. trim(stateName) .. " = true"
-
     local lastError = "unknown write error"
 
     for attempt = 1, 3 do
@@ -217,7 +203,6 @@ local function saveDetectedFruit(stateName)
             if verifyOK and tostring(actual) == content then
                 return true
             end
-
             lastError = "file verification failed"
         else
             lastError = tostring(writeError)
@@ -280,7 +265,7 @@ local function sendWebhook(fruitName)
     end
 
     local requestFunction = getRequestFunction()
-    if not requestFunction me
+    if not requestFunction then
         return false, "Executor does not support HTTP request"
     end
 
@@ -292,7 +277,7 @@ local function sendWebhook(fruitName)
     end
 
     table.insert(lines, "Target Fruit Detect")
-    table.insert(lines, "User: " .. LocalPlayer.Name)
+    table.insert(lines, "username: " .. tostring(LocalPlayer.Name))
     table.insert(lines, "result: " .. tostring(fruitName))
 
     local encodeOK, body = pcall(function()
