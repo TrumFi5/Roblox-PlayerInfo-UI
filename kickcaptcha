@@ -1,46 +1,27 @@
-local CoreGui = game:GetService("CoreGui")
+-- Script Auto-Kick mạnh hơn, dành riêng cho môi trường Cloud Phone
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
-local kickReason = "Phát Hiện Captcha, Chờ Rejon !"
-local keywords = {
-    "Verifying you're not a",
-    "Verification",
-    "Security",
-    "Captcha"
-}
-
--- Hàm quét và thực hiện Kick
-local function scanAndKick()
-    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-    
-    -- Gom toàn bộ UI trong CoreGui và PlayerGui để quét
-    local targets = {}
-    for _, item in ipairs(CoreGui:GetDescendants()) do table.insert(targets, item) end
-    if playerGui then
-        for _, item in ipairs(playerGui:GetDescendants()) do table.insert(targets, item) end
-    end
-
-    -- Kiểm tra từ khóa
-    for _, instance in ipairs(targets) do
-        if instance:IsA("TextLabel") or instance:IsA("TextButton") then
-            local text = instance.Text
-            for _, word in ipairs(keywords) do
-                if string.find(string.lower(text), string.lower(word)) then
-                    LocalPlayer:Kick("\n[AUTO-KICK]\n" .. kickReason)
-                    return true -- Phát hiện xong dừng luôn
+-- Kiểm tra theo kiểu "brute force" - quét mọi thứ trên màn hình
+task.spawn(function()
+    while true do
+        task.wait(10) -- Quét mỗi 10 giây cho nhẹ máy
+        
+        -- Quét toàn bộ CoreGui và PlayerGui
+        local guis = {game:GetService("CoreGui"), LocalPlayer:FindFirstChildOfClass("PlayerGui")}
+        
+        for _, gui in pairs(guis) do
+            if gui then
+                for _, descendant in pairs(gui:GetDescendants()) do
+                    -- Kiểm tra nếu là Text hoặc đối tượng có tên liên quan đến Security/Captcha
+                    if (descendant:IsA("TextLabel") or descendant:IsA("TextButton") or descendant:IsA("TextBox")) then
+                        local text = string.lower(descendant.Text)
+                        if text:find("verifying") or text:find("security") or text:find("verification") or text:find("captcha") then
+                            LocalPlayer:Kick("\n[AUTO-KICK]\nPhát Hiện Captcha, Chờ Rejon !")
+                        end
+                    end
                 end
             end
         end
-    end
-    return false
-end
-
--- Vòng lặp tự động chạy mỗi 120 giây
-task.spawn(function()
-    while true do
-        local isKicked = scanAndKick()
-        if isKicked then break end -- Nếu đã Kick thì ngắt vòng lặp
-        task.wait(120) -- Đợi 120 giây (2 phút) rồi mới quét lại
     end
 end)
